@@ -18,8 +18,7 @@ intents.presences = False
 now = datetime.datetime.now()
 current_time = now.strftime("%Y%m%d.%H%M")
 
-azzibotlink = "https://discord.com/api/oauth2/authorize?client_id=1020863208472444938&permissions=8&scope=bot"
-azziserverlink = "https://discord.gg/bWysaCMFBm"
+
 
 with open("azzidata.json", "r") as file:
     data = json.load(file)
@@ -70,13 +69,19 @@ async def test(ctx):
 
     await ctx.send("테스트티비", view=view)
 
+command = ["아찌를 우리서버로 입양할래!", "아찌 공식 디스코드 서버로 놀러갈래!", "아찌의 소스코드가 궁굼해!"]
+azzibotlink = "https://discord.com/api/oauth2/authorize?client_id=1020863208472444938&permissions=8&scope=bot"
+azziserverlink = "https://discord.gg/bWysaCMFBm"
+azzicodelink = "https://github.com/Jjoon0513/azzidiscord"
 @bot.slash_command(description="아찌에 대한 링크들")
-@option(name="link", description="무슨 링크가 필요하신가요?", type=str, required=True, choices=["아찌를 우리서버로 입양할래!", "아찌 공식 디스코드 서버로 놀러갈래!"])
+@option(name="link", description="무슨 링크가 필요하신가요?", type=str, required=True, choices=command)
 async def 링크들(ctx, link: str):
     if link == "아찌를 우리서버로 입양할래!":
         button = Button(style=discord.ButtonStyle.link, label="여기 입양 절차 서류!", url=azzibotlink)
     elif link == "아찌 공식 디스코드 서버로 놀러갈래!":
         button = Button(style=discord.ButtonStyle.link, label="여기 우리 서버야!", url=azziserverlink)
+    elif link == "아찌의 소스코드가 궁굼해!":
+        button = Button(style=discord.ButtonStyle.link, label="여기 소스코드야!", url=azzicodelink)
     view = discord.ui.View()
     view.add_item(button)
     await ctx.respond("여기있어!", view=view)
