@@ -173,20 +173,21 @@ async def debug(ctx, arg: str):
         else:
             try:
                 des = await eval(arg)
+                with open("azzidata.json", "w") as file:
+                    json.dump(data, file)
+
             except TypeError:
                 des = eval(arg)
+                with open("azzidata.json", "w") as file:
+                    json.dump(data, file)
 
         embed = discord.Embed(title=arg, description=str(des), color=GREEN_COLOR)
         await ctx.respond(embed=embed)
-
-        with open("azzidata.json", "w") as file:
-            json.dump(data, file)
 
     except Exception as e:
         error_traceback = traceback.format_exc()
         embed = discord.Embed(title="왈! 왈! (에러 났사와여!)", description=f"{error_traceback} in error: {arg}", color=RED_COLOR)
         await ctx.respond(embed=embed)
-
 
 
 
