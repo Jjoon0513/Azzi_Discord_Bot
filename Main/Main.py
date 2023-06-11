@@ -73,6 +73,7 @@ command = ["아찌를 우리서버로 입양할래!", "아찌 공식 디스코�
 azzibotlink = "https://discord.com/api/oauth2/authorize?client_id=1020863208472444938&permissions=8&scope=bot"
 azziserverlink = "https://discord.gg/bWysaCMFBm"
 azzicodelink = "https://github.com/Jjoon0513/azzidiscord"
+
 @bot.slash_command(description="아찌에 대한 링크들")
 @option(name="link", description="무슨 링크가 필요하신가요?", type=str, required=True, choices=command)
 async def 링크들(ctx, link: str):
@@ -178,13 +179,16 @@ async def debug(ctx, arg: str):
         else:
             try:
                 des = await eval(arg)
-                with open("azzidata.json", "w") as file:
-                    json.dump(data, file)
-
+                if isinstance(des, list):
+                    data[arg] = des
+                    with open("azzidata.json", "w") as file:
+                        json.dump(data, file)
             except TypeError:
                 des = eval(arg)
-                with open("azzidata.json", "w") as file:
-                    json.dump(data, file)
+                if isinstance(des, list):
+                    data[arg] = des
+                    with open("azzidata.json", "w") as file:
+                        json.dump(data, file)
 
         embed = discord.Embed(title=arg, description=str(des), color=GREEN_COLOR)
         await ctx.respond(embed=embed)
@@ -193,6 +197,7 @@ async def debug(ctx, arg: str):
         error_traceback = traceback.format_exc()
         embed = discord.Embed(title="왈! 왈! (에러 났사와여!)", description=f"{error_traceback} in error: {arg}", color=RED_COLOR)
         await ctx.respond(embed=embed)
+
 
 
 
