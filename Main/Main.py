@@ -1,6 +1,6 @@
 import discord
 from discord import option
-from discord.ext import commands
+from discord.ext import commands, tasks
 import os
 import random
 import json
@@ -18,12 +18,24 @@ intents.presences = False
 now = datetime.datetime.now()
 current_time = now.strftime("%Y%m%d.%H%M")
 
+@tasks.loop(hours=1)
+async def giveallsnack():
+    now = datetime.datetime.now()
+    if now.minute == 0 and now.second == 0:
+        with open("azzisnack.json", "r") as file:
+            data = json.load(file)
+
+        for user_id in data["snack_count"]:
+            data["snack_count"][user_id] += 3
+
+        with open("azzisnack.json", "w") as file:
+            json.dump(data, file)
 
 
 with open("azzidata.json", "r") as file:
     data = json.load(file)
 
-data["version"] = f" alpha.{current_time}"
+data["version"] = "azzi.alpha.0"
 
 with open("azzidata.json", "w") as file:
     json.dump(data, file)
@@ -40,12 +52,12 @@ bot = commands.Bot(command_prefix=commands.when_mentioned_or("아찌 ", "ㅇㅉ 
 @bot.event
 async def on_ready():
     print(f"{bot.user} is ready and online!")
-    await bot.change_presence(status=discord.Status.online, activity=discord.Game(name="테스트"))
+    await bot.change_presence(status=discord.Status.online, activity=discord.Game(name="아찌 알파.0 테스트"))
+    await giveallsnack()
 
-
-@bot.command(name="안녕")
-async def hello(ctx):
-    await ctx.send("안녕하세요!")
+@bot.command(name="status")
+async def status(ctx):
+    await ctx.send("online")
 
 
 @bot.command(name="너", aliases=["너말고", "너말구"])
@@ -69,6 +81,56 @@ async def test(ctx):
 
     await ctx.send("테스트티비", view=view)
 
+@bot.command(name="내간식확인", aliases=["내 간식 확인"])
+async def mysnackcheck(ctx):
+    with open("azzisnack.json", "r") as file:
+        data = json.load(file)
+    with open("azzisnackid.json", "r") as file:
+        data1 = json.load(file)
+
+    snackid = data1["snack_count"].get(str(ctx.author.id), 0)
+    snacks = data["snack_count"].get(str(ctx.author.id), 0)
+    username = ctx.author.name
+    await ctx.send(f"**{username}**님의 간식은 **{snacks}**개 남았고 한 **{snackid}**개 정도 준거 같네요!")
+
+@bot.command(name="간식확인", aliases=["간식 확인"])
+async def snackcheck(ctx):
+    with open("azzidata.json", "r") as file:
+        data = json.load(file)
+    snack = data["breakfast"]
+    await ctx.send(f"아찌는 지금 간식을 {snack}개 정도 먹었어요!")
+
+@bot.command(name="간식주기", aliases=["간식 주기"])
+async def breakfast(ctx):
+    with open("azzidata.json", "r") as file:
+        data = json.load(file)
+    with open("azzisnack.json", "r") as file:
+        data1 = json.load(file)
+    with open("azzisnackid.json", "r") as file:
+        data2 = json.load(file)
+
+    data["breakfast"] += 1
+
+    if str(ctx.author.id) not in data1["snack_count"]:
+        data1["snack_count"][str(ctx.author.id)] = 10
+
+    if data1["snack_count"][str(ctx.author.id)] == 0:
+        await ctx.send("아쉽지만 남은 간식을 다 준거 같네요! 간식은 매 정각마다 3개씩 들어와요!")
+        return
+
+    data1["snack_count"][str(ctx.author.id)] -= 1
+    data2["snack_count"][str(ctx.author.id)] += 1
+
+    with open("azzidata.json", "w") as file:
+        json.dump(data, file)
+    with open("azzisnack.json", "w") as file:
+        json.dump(data1, file)
+    with open("azzisnackid.json", "w") as file:
+        json.dump(data2, file)
+    embed = discord.Embed(title="훔냠냠!", color=GREEN_COLOR, description=f"아찌는 간식을 {data['breakfast']}번 먹었습니다!")
+    await ctx.send(embed=embed)
+
+
 command = ["아찌를 우리서버로 입양할래!", "아찌 공식 디스코드 서버로 놀러갈래!", "아찌의 소스코드가 궁굼해!"]
 azzibotlink = "https://discord.com/api/oauth2/authorize?client_id=1020863208472444938&permissions=8&scope=bot"
 azziserverlink = "https://discord.gg/bWysaCMFBm"
@@ -87,6 +149,18 @@ async def 링크들(ctx, link: str):
     view.add_item(button)
     await ctx.respond("여기있어!", view=view)
 
+async def reporter(user, userid, report):
+    channelid = 1122895798783451167
+    channel = bot.get_channel(channelid)
+    await channel.send(f"- {user}({userid})님의 버그 리포트가 도착했어요!")
+    await channel.send(f">>> {report}")
+@bot.slash_command(name="버그리포트", description="버그리포트")
+@option(name="report", description="무슨 버그가 있나요? (만약 장난일경우 심하면 밴!)", type=str, required=True)
+async def report(ctx, report: str):
+    username = ctx.user
+    userid = ctx.user.id
+    await reporter(username, userid, report)
+    await ctx.respond("감사함니다! 검토해보고 수정하겠습니다!")
 
 @bot.event
 async def on_message(message):
@@ -98,54 +172,28 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-@bot.command(name="configs")
-async def setin(ctx, arg: str, arg1: str, arg2: int = 0):
-    try:
-        with open("azzidata.json", "r") as file:
-            data = json.load(file)
-        if int(ctx.author.id) in data["AdminList"]:
-            if arg == "set":
-                if arg1 == "ban":
-                    with open("azzidata.json", "r") as file:
-                        data = json.load(file)
+commmand1 = ["banlist", "adminlist"]
+@bot.slash_command(description="appned Admin or Ban in List (dev only)")
+@option(name="type", description="set ban or set admin", type=str, required=True, choices=commmand1)
+@option(name="int", description="ID", type=str, required=True, choices=command)
+async def appned(ctx, type: str, id: int):
+    with open("azzidata.json", "r") as file:
+        data = json.load(file)
 
-                    ban_number = arg2
-                    data["BanList"].append(ban_number)
+    if int(ctx.author.id) not in data["AdminList"]:
+        await ctx.respond("넌 주인이 아니잖아 아르르르르르르를")
+        return None
 
-                    with open("azzidata.json", "w") as file:
-                        json.dump(data, file)
+    if type == "banlist":
+        data["BanList"].append(id)
+    elif type == "adminlist":
+        data["AdminList"].append(id)
 
-                    await ctx.send(f"성공적으로 밴 했습니다 {arg2}")
+    with open("azzidata.json", "w") as file:
+        json.dump(data, file)
 
-                if arg1 == "unban":
-                    with open("azzidata.json", "r") as file:
-                        data = json.load(file)
+    await ctx.respond(f"{type}에 {id}가 추가되었습니당")
 
-                    ban_number = arg2
-                    data["BanList"].remove(ban_number)
-
-                    with open("azzidata.json", "w") as file:
-                        json.dump(data, file)
-
-                    await ctx.send(f"성공적으로 밴을 해제했습니다 {arg2}")
-
-            elif arg == "show":
-                if arg1 == "banList":
-                    with open("azzidata.json", "r") as file:
-                        data = json.load(file)
-
-                    await ctx.send(data["BanList"])
-        else:
-            await ctx.send("와오아왕! (어디서 큰일날소리를!)")
-
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        embed = discord.Embed(title="왈! 왈! (에러 났사와여!)", description=f"{error_traceback} in error {arg}", color=RED_COLOR)
-        await ctx.respond(embed=embed)
-
-@bot.command(name="config")
-async def setin(ctx, arg: str, arg1: str, arg2: int = 0):
-    ""
 bot.remove_command("help")
 
 @bot.command(hidden=True)
@@ -179,26 +227,18 @@ async def debug(ctx, arg: str):
         else:
             try:
                 des = await eval(arg)
-                if isinstance(des, list):
-                    data[arg] = des
-                    with open("azzidata.json", "w") as file:
-                        json.dump(data, file)
             except TypeError:
                 des = eval(arg)
-                if isinstance(des, list):
-                    data[arg] = des
-                    with open("azzidata.json", "w") as file:
-                        json.dump(data, file)
 
         embed = discord.Embed(title=arg, description=str(des), color=GREEN_COLOR)
         await ctx.respond(embed=embed)
+
+        with open("azzidata.json", "w") as file:
+            json.dump(data, file)
 
     except Exception as e:
         error_traceback = traceback.format_exc()
         embed = discord.Embed(title="왈! 왈! (에러 났사와여!)", description=f"{error_traceback} in error: {arg}", color=RED_COLOR)
         await ctx.respond(embed=embed)
-
-
-
 
 bot.run(os.getenv('TOKEN'))
