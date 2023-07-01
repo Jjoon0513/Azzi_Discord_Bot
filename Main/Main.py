@@ -8,9 +8,10 @@ import datetime
 from dotenv import load_dotenv
 import traceback
 from discord.ui import Button
+import azzimassage
 import math
 
-
+am = azzimassage
 intents = discord.Intents.default()
 intents.typing = False
 intents.presences = False
@@ -20,16 +21,14 @@ current_time = now.strftime("%Y%m%d.%H%M")
 
 @tasks.loop(hours=1)
 async def giveallsnack():
-    now = datetime.datetime.now()
-    if now.minute == 0 and now.second == 0:
-        with open("azzisnack.json", "r") as file:
+    with open("azzisnack.json", "r") as file:
             data = json.load(file)
 
-        for user_id in data["snack_count"]:
+    for user_id in data["snack_count"]:
             data["snack_count"][user_id] += 3
 
-        with open("azzisnack.json", "w") as file:
-            json.dump(data, file)
+    with open("azzisnack.json", "w") as file:
+        json.dump(data, file)
 
 
 with open("azzidata.json", "r") as file:
@@ -71,7 +70,13 @@ async def nou(ctx, *, arg: str = ""):
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
-        await ctx.send(random.choice(["왕?", "우웅?", "왈?", "와왕?", "끼잉?", "그응?"]))
+        prefix_list = ["아찌 ", "ㅇㅉ ", "아찌야 ", "ㅇㅉㅇ "]  # 접두사 목록 설정
+        content = ctx.message.content
+        for prefix in prefix_list:
+            if content.startswith(prefix):
+                content = content[len(prefix):]  # 접두사를 제외한 실제 내용 구하기
+                break
+        await ctx.send(am.azzimassage(content))
 
 @bot.command()
 async def test(ctx):
@@ -87,11 +92,10 @@ async def mysnackcheck(ctx):
         data = json.load(file)
     with open("azzisnackid.json", "r") as file:
         data1 = json.load(file)
-
-    snackid = data1["snack_count"].get(str(ctx.author.id), 0)
-    snacks = data["snack_count"].get(str(ctx.author.id), 0)
+    snacks = data.get(str(ctx.author.id), 0)
+    snacksgive = data1.get(str(ctx.author.id), 0)
     username = ctx.author.name
-    await ctx.send(f"**{username}**님의 간식은 **{snacks}**개 남았고 한 **{snackid}**개 정도 준거 같네요!")
+    await ctx.send(f"**{username}**님의 간식은 **{snacks}**개 남았고 **{snacksgive}**개정도 준거 같네요!")
 
 @bot.command(name="간식확인", aliases=["간식 확인"])
 async def snackcheck(ctx):
@@ -105,30 +109,33 @@ async def breakfast(ctx):
     with open("azzidata.json", "r") as file:
         data = json.load(file)
     with open("azzisnack.json", "r") as file:
-        data1 = json.load(file)
+        snacks = json.load(file)
     with open("azzisnackid.json", "r") as file:
-        data2 = json.load(file)
+        snacksid = json.load(file)
 
     data["breakfast"] += 1
 
-    if str(ctx.author.id) not in data1["snack_count"]:
-        data1["snack_count"][str(ctx.author.id)] = 10
+    if str(ctx.author.id) not in snacks:
+        snacks[str(ctx.author.id)] = 10
+        snacksid[str(ctx.author.id)] = 0
 
-    if data1["snack_count"][str(ctx.author.id)] == 0:
+    if snacks[str(ctx.author.id)] == 0:
         await ctx.send("아쉽지만 남은 간식을 다 준거 같네요! 간식은 매 정각마다 3개씩 들어와요!")
         return
 
-    data1["snack_count"][str(ctx.author.id)] -= 1
-    data2["snack_count"][str(ctx.author.id)] += 1
+    snacks[str(ctx.author.id)] -= 1
+    snacksid[str(ctx.author.id)] += 1
 
     with open("azzidata.json", "w") as file:
         json.dump(data, file)
     with open("azzisnack.json", "w") as file:
-        json.dump(data1, file)
+        json.dump(snacks, file)
     with open("azzisnackid.json", "w") as file:
-        json.dump(data2, file)
+        json.dump(snacksid, file)
+
     embed = discord.Embed(title="훔냠냠!", color=GREEN_COLOR, description=f"아찌는 간식을 {data['breakfast']}번 먹었습니다!")
     await ctx.send(embed=embed)
+
 
 
 command = ["아찌를 우리서버로 입양할래!", "아찌 공식 디스코드 서버로 놀러갈래!", "아찌의 소스코드가 궁굼해!"]
@@ -164,12 +171,17 @@ async def report(ctx, report: str):
 
 @bot.event
 async def on_message(message):
+    await bot.process_commands(message)
+    if message.author.bot:
+        return
+
     if message.content == "아찌야" or message.content == "아찌":
         await message.channel.send(random.choice(["왕 (넴)", "와왕! (네넵)", "왈 (넴)"]))
-
+        return
     elif int(message.author.id) in data["BanList"]:
         await message.channel.send("아르르르... (너에게서 나쁜냄새 난다!)")
-    await bot.process_commands(message)
+        return
+
 
 
 commmand1 = ["banlist", "adminlist"]
